@@ -5,6 +5,7 @@ RUN npm install -g pnpm && pnpm install --frozen-lockfile
 
 FROM node:20-slim AS builder
 WORKDIR /app
+RUN npm install -g pnpm
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate && pnpm build
