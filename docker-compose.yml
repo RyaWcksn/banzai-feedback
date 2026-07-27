@@ -1,0 +1,61 @@
+version: "3.8"
+
+networks:
+  web:
+    external: false
+
+services:
+  traefik:
+    image: traefik:v3.1
+    container_name: traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    command:
+      - "--api.insecure=true" # Enables dashboard at http://<your-ip>:8080
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080" # Traefik Dashboard port
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - web
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: questionnaire_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres_user
+      POSTGRES_PASSWORD: postgres_password
+      POSTGRES_DB: questionnaire_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - web
+
+  app:
+    build: .
+    container_name: questionnaire_app
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:${POSTGRES_PORT}/${POSTGRES_DB}?schema=public
+    depends_on:
+      - postgres
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      # Define router for your domain/subdomain
+      - "traefik.http.routers.app.rule=Host(`yourdomain.com`)" # Replace with your domain or server IP/localhost for testing
+      - "traefik.http.routers.app.entrypoints=web"
+      # Point Traefik to port 3000 inside the Next.js container
+      - "traefik.http.services.app.loadbalancer.server.port=3000"
+
+volumes:
+  postgres_data:
