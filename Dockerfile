@@ -6,6 +6,10 @@ FROM base AS deps
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --no-frozen-lockfile
 
+COPY package.json pnpm-lock.yaml* ./
+COPY prisma ./prisma
+COPY prisma.config.ts ./ 2>/dev/null || :
+
 RUN pnpm prisma generate
 
 FROM base AS builder
