@@ -10,8 +10,6 @@ COPY package.json pnpm-lock.yaml* ./
 COPY prisma ./prisma
 COPY prisma.config.ts ./ 2>/dev/null || :
 
-RUN pnpm prisma generate
-
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
