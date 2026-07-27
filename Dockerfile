@@ -1,39 +1,21 @@
-# ---- Dependencies ----
-FROM node:20-alpine AS deps
-WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install --frozen-lockfile --prod=false
-
-# ---- Builder ----
-FROM node:20-alpine AS builder
-WORKDIR /app
-RUN npm install -g pnpm
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-RUN pnpm build
-
-# ---- Runner ----
-FROM node:20-alpine AS runner
-WORKDIR /app
-
-ENV NODE_ENV=production
-
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
-
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/app/generated ./app/generated
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.package-lock.json ./node_modules/.package-lock.json
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/pg ./node_modules/pg
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-
-USER nextjs
-
-EXPOSE 3000
-
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-
-CMD ["node", "server.js"]
+FROM node:20-alpine  
+# Set environment variable (only accessible during build)
+ENV DATABASE_URL=${DATABASE_URL}  
+# Set working directory
+WORKDIR /app  
+# Install pnpm globally
+RUN npm install -g pnpm  
+# Copy dependency files first (for better caching)
+COPY package.json pnpm-lock.yaml ./  
+COPY prisma ./prisma/  
+# Install dependencies and generate Prisma client
+RUN pnpm install --frozen-lockfile  
+RUN npx prisma generate  
+# Copy all project files
+COPY . .  
+# Build the application
+RUN pnpm build  
+# Expose port 3000
+EXPOSE 3000  
+# Start the application
+CMD ["pnpm", "start"]
